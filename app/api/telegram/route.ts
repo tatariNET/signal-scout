@@ -59,6 +59,26 @@ export async function POST(request: Request) {
     return new Response("OK");
   }
 
-  await sendTelegramMessage("Commands: /run, /reset, /run_reset", { chatId });
+  if (text === "/status") {
+    const baseUrl = getBaseUrl(request);
+    if (!baseUrl) {
+      await sendTelegramMessage("Server URL not configured.", { chatId });
+      return new Response("OK");
+    }
+    const statusRes = await fetch(
+      `${baseUrl}/api/run?test=1&debug=1&dedupe=0&chatId=${encodeURIComponent(
+        chatId,
+      )}`,
+      { method: "GET" },
+    );
+    const statusText = await statusRes.text();
+    await sendTelegramMessage(`Status:\n${statusText}`, { chatId });
+    return new Response("OK");
+  }
+
+  await sendTelegramMessage(
+    "Commands: /run, /reset, /run_reset, /status",
+    { chatId },
+  );
   return new Response("OK");
 }
