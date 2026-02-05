@@ -42,8 +42,18 @@ export async function scrapeOpportunities(options: ScrapeOptions = {}) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
 
-  await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-  await page.waitForSelector(itemSelector, { timeout: timeoutMs });
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+  } catch {
+    await browser.close();
+    return [];
+  }
+  try {
+    await page.waitForSelector(itemSelector, { timeout: timeoutMs });
+  } catch {
+    await browser.close();
+    return [];
+  }
 
   const items = await page.$$eval(
     itemSelector,
@@ -226,13 +236,17 @@ export async function scrapeOpportunities(options: ScrapeOptions = {}) {
 export async function scrapeSources(sources: ScrapeSource[]) {
   const results: Opportunity[] = [];
   for (const source of sources) {
-    const items = await scrapeOpportunities(source);
-    results.push(
-      ...items.map((item) => ({
-        ...item,
-        source: source.name,
-      })),
-    );
+    try {
+      const items = await scrapeOpportunities(source);
+      results.push(
+        ...items.map((item) => ({
+          ...item,
+          source: source.name,
+        })),
+      );
+    } catch {
+      // Skip failing source
+    }
   }
   return results;
 }

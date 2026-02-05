@@ -49,6 +49,28 @@ const sources: ScrapeSource[] = [
       "Anywhere in the World",
     ],
   },
+  {
+    name: "GitHub Internships",
+    url: "https://github.com/SimplifyJobs/Summer2026-Internships",
+    itemSelector: "table tbody tr",
+    titleSelector: "td:nth-child(2)",
+    linkSelector: "td:nth-child(4) a",
+    companySelector: "td:nth-child(1)",
+    locationSelector: "td:nth-child(3)",
+    limit: 20,
+    stripAfter: [],
+  },
+  {
+    name: "GitHub Remote Internships",
+    url: "https://github.com/SimplifyJobs/Remote-Internships",
+    itemSelector: "table tbody tr",
+    titleSelector: "td:nth-child(2)",
+    linkSelector: "td:nth-child(4) a",
+    companySelector: "td:nth-child(1)",
+    locationSelector: "td:nth-child(3)",
+    limit: 20,
+    stripAfter: [],
+  },
 ];
 
 export async function GET(request: Request) {
@@ -56,6 +78,9 @@ export async function GET(request: Request) {
   const include = searchParams.get("include")?.toLowerCase() || "";
   const exclude = searchParams.get("exclude")?.toLowerCase() || "";
   const max = Number(searchParams.get("max") || 10);
+  const sourceFilter = searchParams.get("source")?.toLowerCase() || "";
+  const locationFilter = searchParams.get("location")?.toLowerCase() || "";
+  const remoteOnly = searchParams.get("remote") === "1";
   const debug = searchParams.get("debug") === "1";
   const skipDedupe = searchParams.get("dedupe") === "0";
   const reset = searchParams.get("reset") === "1";
@@ -82,6 +107,15 @@ export async function GET(request: Request) {
       `${item.title} ${item.company ?? ""} ${item.location ?? ""}`
         .toLowerCase()
         .trim();
+    if (sourceFilter) {
+      const allowed = sourceFilter
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (!allowed.includes((item.source || "").toLowerCase())) return false;
+    }
+    if (locationFilter && !haystack.includes(locationFilter)) return false;
+    if (remoteOnly && !haystack.includes("remote")) return false;
     if (item.title.toLowerCase() === "view company profile") return false;
     if (include && !haystack.includes(include)) return false;
     if (exclude && haystack.includes(exclude)) return false;
@@ -131,16 +165,26 @@ export async function GET(request: Request) {
     );
   }
 
+  const escapeMarkdownV2 = (value: string) =>
+    value.replace(/[_*\[\]()~`>#+\-=|{}.!]/g, "\\$&");
+
   const message = top
     .map((item) => {
-      const title = item.title || "Untitled";
-      const company = item.company ? ` at ${item.company}` : "";
-      const location = item.location ? ` (${item.location})` : "";
-      const link = item.link || "No link";
-      return `💼 ${title}${company}${location}\n🔗 ${link}`;
+      const title = escapeMarkdownV2(item.title || "Untitled");
+      const company = item.company
+        ? ` at ${escapeMarkdownV2(item.company)}`
+        : "";
+      const location = item.location
+        ? ` (${escapeMarkdownV2(item.location)})`
+        : "";
+      const link = escapeMarkdownV2(item.link || "No link");
+      return `💼 ${title}${company}${location}\n🔗 [Apply Here](${link})`;
     })
     .join("\n\n");
 
-  await sendTelegramMessage(message);
+  await sendTelegramMessage(message, {
+    parseMode: "MarkdownV2",
+    disableWebPreview: true,
+  });
   return new Response("Message sent to Telegram!");
 }
