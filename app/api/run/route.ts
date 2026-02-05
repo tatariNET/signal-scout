@@ -81,6 +81,7 @@ export async function GET(request: Request) {
   const sourceFilter = searchParams.get("source")?.toLowerCase() || "";
   const locationFilter = searchParams.get("location")?.toLowerCase() || "";
   const remoteOnly = searchParams.get("remote") === "1";
+  const chatId = searchParams.get("chatId") || "";
   const debug = searchParams.get("debug") === "1";
   const skipDedupe = searchParams.get("dedupe") === "0";
   const reset = searchParams.get("reset") === "1";
@@ -185,6 +186,7 @@ export async function GET(request: Request) {
   await sendTelegramMessage(message, {
     parseMode: "MarkdownV2",
     disableWebPreview: true,
+    chatId: chatId || undefined,
   });
   return new Response("Message sent to Telegram!");
 }

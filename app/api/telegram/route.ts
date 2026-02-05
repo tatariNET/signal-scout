@@ -14,29 +14,25 @@ export async function POST(request: Request) {
   const update = await request.json();
   const message = update?.message || update?.callback_query?.message;
   const chatId = message?.chat?.id ? String(message.chat.id) : "";
-  const text =
-    update?.message?.text || update?.callback_query?.data || "";
+  const text = update?.message?.text || update?.callback_query?.data || "";
 
   if (!chatId) {
     return new Response("No chat id", { status: 200 });
   }
 
   if (text === "/start") {
-    await sendTelegramMessage(
-      "Choose an action:",
-      {
-        chatId,
-        replyMarkup: {
-          inline_keyboard: [
-            [
-              { text: "Run now", callback_data: "/run" },
-              { text: "Reset cache", callback_data: "/reset" },
-            ],
-            [{ text: "Run + Reset", callback_data: "/run_reset" }],
+    await sendTelegramMessage("Choose an action:", {
+      chatId,
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            { text: "Run now", callback_data: "/run" },
+            { text: "Reset cache", callback_data: "/reset" },
           ],
-        },
+          [{ text: "Run + Reset", callback_data: "/run_reset" }],
+        ],
       },
-    );
+    });
     return new Response("OK");
   }
 
@@ -55,14 +51,14 @@ export async function POST(request: Request) {
       await sendTelegramMessage("Server URL not configured.", { chatId });
       return new Response("OK");
     }
-    await fetch(`${baseUrl}/api/run?dedupe=0`, { method: "GET" });
+    const encodedChatId = encodeURIComponent(chatId);
+    await fetch(`${baseUrl}/api/run?dedupe=0&chatId=${encodedChatId}`, {
+      method: "GET",
+    });
     await sendTelegramMessage("Run triggered.", { chatId });
     return new Response("OK");
   }
 
-  await sendTelegramMessage(
-    "Commands: /run, /reset, /run_reset",
-    { chatId },
-  );
+  await sendTelegramMessage("Commands: /run, /reset, /run_reset", { chatId });
   return new Response("OK");
 }
